@@ -45,18 +45,22 @@ button.g{background:#888}
 const GROUPS=[
   {k:'弟兄',main:1},
   {k:'姊妹',main:1},
+  {k:'青職',main:1},
   {k:'大專',main:1},
   {k:'青少年'},
   {k:'兒童'},
   {k:'學齡前'},
+  {k:'幼幼'},
   {k:'福音朋友'}
 ];
 const DEFAULT_ROSTER=`弟兄：
 姊妹：
+青職：
 大專：
 青少年：
 兒童：
 學齡前：
+幼幼：
 福音朋友：`;
 const LS=localStorage;
 let rosterText=LS.getItem('roster')||DEFAULT_ROSTER;
@@ -128,8 +132,10 @@ function out(){
   alert('已複製，請到 LINE 貼上');
 }
 function resetAll(){if(confirm('清除本週點名？')){state={};LS.setItem('state','{}');render()}}
-function toggleEdit(){const e=$('edit');e.style.display=e.style.display==='block'?'none':'block';$('roster').value=rosterText}
-function saveRoster(){rosterText=$('roster').value;LS.setItem('roster',rosterText);render();alert('已儲存')}
+const NOTE='# 可用分組（名稱須完全相同）：弟兄、姊妹、青職、大專、青少年、兒童、學齡前、幼幼、福音朋友\n# 計入總人數：弟兄、姊妹、青職、大專；其餘只列名單與人數\n';
+const strip=t=>t.split('\n').filter(l=>!l.startsWith('#')).join('\n');
+function toggleEdit(){const e=$('edit');e.style.display=e.style.display==='block'?'none':'block';$('roster').value=NOTE+strip(rosterText)}
+function saveRoster(){rosterText=strip($('roster').value);LS.setItem('roster',rosterText);render();alert('已儲存')}
 render();
 </script>
 </body>
