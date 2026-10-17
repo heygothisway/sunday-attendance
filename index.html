@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>主日點名</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#22bb55">
 <style>
 body{font-family:-apple-system,"Noto Sans TC",sans-serif;margin:0;padding:0 0 90px;background:#f4f4f6}
 header{position:sticky;top:0;background:#2b5;color:#fff;padding:10px 12px;z-index:5}
@@ -137,6 +140,7 @@ const strip=t=>t.split('\n').filter(l=>!l.startsWith('#')).join('\n');
 function toggleEdit(){const e=$('edit');e.style.display=e.style.display==='block'?'none':'block';$('roster').value=NOTE+strip(rosterText)}
 function saveRoster(){rosterText=strip($('roster').value);LS.setItem('roster',rosterText);render();alert('已儲存')}
 render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script>
 </body>
 </html>
