@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>主日點名</title>
+<style>
+body{font-family:-apple-system,"Noto Sans TC",sans-serif;margin:0;padding:0 0 90px;background:#f4f4f6}
+header{position:sticky;top:0;background:#2b5;color:#fff;padding:10px 12px;z-index:5}
+header input{font-size:16px;padding:4px;border-radius:6px;border:0;width:130px}
+#sum{font-size:14px;margin-top:4px}
+h2{margin:14px 12px 6px;font-size:16px}
+h2 small{color:#888;font-weight:normal;font-size:12px}
+.grid{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px}
+.p{padding:12px 14px;border-radius:10px;background:#fff;border:2px solid #ddd;font-size:17px;user-select:none}
+.p.s1{background:#2b5;color:#fff;border-color:#2b5}
+.p.s2{background:#58f;color:#fff;border-color:#58f}
+.p.s3{background:#999;color:#fff;border-color:#999}
+.legend{padding:6px 12px;font-size:13px;color:#555}
+footer{position:fixed;bottom:0;left:0;right:0;display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #ccc}
+button{flex:1;font-size:17px;padding:12px;border-radius:10px;border:0;background:#2b5;color:#fff}
+button.g{background:#888}
+#roster{width:calc(100% - 24px);margin:0 12px;height:260px;font-size:14px}
+#edit{display:none}
+</style>
+</head>
+<body>
+<header>
+  <input type="date" id="date"> <span id="sum"></span>
+</header>
+<div class="legend">點一下＝到（綠）；再點＝夜擘（藍）；再點＝無法參加（灰）；再點＝取消。未標記者自動列入「未到待關心」。</div>
+<div id="list"></div>
+<div id="edit">
+  <h2>名單編輯 <small>每行「分組：姓名、姓名」</small></h2>
+  <textarea id="roster"></textarea>
+  <div style="padding:8px 12px"><button onclick="saveRoster()">儲存名單</button></div>
+</div>
+<footer>
+  <button onclick="copyOut()">複製報表</button>
+  <button class="g" onclick="resetAll()">清除本週</button>
+  <button class="g" onclick="toggleEdit()">名單</button>
+</footer>
+<script>
+// main: 計入聖徒人數（到或夜擘），並有夜擘／無法參加／未到待關心
+const GROUPS=[
+  {k:'弟兄',main:1},
+  {k:'姊妹',main:1},
+  {k:'大專',main:1},
+  {k:'青少年'},
+  {k:'兒童'},
+  {k:'學齡前'},
+  {k:'福音朋友'}
+];
+const DEFAULT_ROSTER=`弟兄：
+姊妹：
+大專：
+青少年：
+兒童：
+學齡前：
+福音朋友：`;
+const LS=localStorage;
+let rosterText=LS.getItem('roster')||DEFAULT_ROSTER;
+let state=JSON.parse(LS.getItem('state')||'{}'); // name -> 1到 2夜擘 3無法參加
+const $=id=>document.getElementById(id);
+
+function parse(){
+  const r={};GROUPS.forEach(g=>r[g.k]=[]);
+  rosterText.split('\n').forEach(l=>{
+    const m=l.split(/[：:]/);if(m.length<2)return;
+    const g=m[0].trim();if(!r[g])return;
+    m.slice(1).join('').split(/[、,，\s]+/).filter(Boolean).forEach(n=>r[g].push(n));
+  });
+  return r;
+}
+function lastSunday(){const d=new Date();d.setDate(d.getDate()-d.getDay());return d}
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+if(LS.getItem('weekOf')!==ymd(lastSunday())){
+  state={};LS.setItem('weekOf',ymd(lastSunday()));LS.setItem('date',ymd(lastSunday()));LS.setItem('state','{}');
+}
+$('date').value=LS.getItem('date');
+$('date').onchange=()=>LS.setItem('date',$('date').value);
+
+const st=n=>state[n]||0;
+const isMain=k=>GROUPS.find(g=>g.k===k).main;
+const pick=(r,k,s)=>r[k].filter(n=>st(n)===s);
+const J=a=>a.join('、');
+
+function totalSaints(r){
+  return GROUPS.filter(g=>g.main).reduce((s,g)=>s+pick(r,g.k,1).length+pick(r,g.k,2).length,0);
+}
+function render(){
+  const r=parse();let h='';
+  GROUPS.forEach(g=>{
+    if(!r[g.k].length)return;
+    h+=`<h2>${g.k}</h2><div class="grid">`;
+    r[g.k].forEach(n=>{h+=`<div class="p s${st(n)}" onclick="tap('${n}',${g.main?1:0})">${n}</div>`});
+    h+='</div>';
+  });
+  if(!h)h='<p style="padding:12px">尚無名單，請按下方「名單」貼入（每行「分組：姓名、姓名」）。</p>';
+  $('list').innerHTML=h;
+  $('sum').textContent=`聖徒 ${totalSaints(r)}`;
+}
+function tap(n,main){
+  const v=(st(n)+1)%(main?4:2);
+  if(v)state[n]=v;else delete state[n];
+  LS.setItem('state',JSON.stringify(state));render();
+}
+function out(){
+  const r=parse();
+  const d=$('date').value.replace(/-/g,'');
+  const MAIN=GROUPS.filter(g=>g.main).map(g=>g.k);
+  const OTHER=GROUPS.filter(g=>!g.main).map(g=>g.k);
+  const cnt=s=>MAIN.reduce((x,k)=>x+pick(r,k,s).length,0);
+  // 人數為 0 的組別不輸出
+  const block=(k,s)=>{const a=pick(r,k,s);return a.length?`${k}：${a.length}\n${J(a)}\n\n`:''};
+  const section=(title,n,body)=>body?`──────\n${title}：${n}\n\n${body}`:'';
+  let t=`${d}\n\n建國區主日聚會人數 ：${totalSaints(r)}\n\n`;
+  t+=section('1. 上午',cnt(1),MAIN.concat(OTHER).map(k=>block(k,1)).join(''));
+  t+=section('2. 未到待關心',cnt(0),MAIN.map(k=>block(k,0)).join(''));
+  t+=section('3. 夜擘',cnt(2),MAIN.map(k=>block(k,2)).join(''));
+  t+=section('4. 無法參加',cnt(3),MAIN.map(k=>block(k,3)).join(''));
+  return t.trim();
+}async function copyOut(){
+  const t=out();
+  try{await navigator.clipboard.writeText(t)}catch(e){
+    const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();
+  }
+  alert('已複製，請到 LINE 貼上');
+}
+function resetAll(){if(confirm('清除本週點名？')){state={};LS.setItem('state','{}');render()}}
+function toggleEdit(){const e=$('edit');e.style.display=e.style.display==='block'?'none':'block';$('roster').value=rosterText}
+function saveRoster(){rosterText=$('roster').value;LS.setItem('roster',rosterText);render();alert('已儲存')}
+render();
+</script>
+</body>
+</html>
